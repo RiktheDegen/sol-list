@@ -243,7 +243,7 @@ export default async function home() {
           className="container px-4 md:px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Package2Icon className="h-6 w-6" />
-            <span className="font-semibold">Decentralized Marketplace</span>
+            <span className="font-semibold">Satoshi's List</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="#" className="text-sm hover:text-primary" prefetch={false}>
