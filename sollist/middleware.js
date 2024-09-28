@@ -1,5 +1,6 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
-import { NextResponse } from "next/server";
+// This file is not an ES module
+const { createMiddlewareClient } = require("@supabase/auth-helpers-nextjs");
+const { NextResponse } = require("next/server");
 
 export async function middleware(req) {
   const res = NextResponse.next();

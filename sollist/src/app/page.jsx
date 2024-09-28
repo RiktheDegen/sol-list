@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
+import SearchBar from "@/components/ui/searchbar";
 
 export default async function home() {
   const cookieStore = cookies();
@@ -24,44 +25,52 @@ export default async function home() {
    
 
   return (
-    (<div className="flex flex-col min-h-screen bg-muted/40">
-      <header className="bg-background shadow-sm">
-        <div className="container px-4 md:px-6 py-4 flex items-center justify-between">
+    (<div className="flex flex-col min-h-screen">
+      <header className="bg-background">
+        <div className=" px-4 md:px-6 py-4 flex items-center justify-between">
           <Link
             href="#"
             className="flex items-center gap-2 font-semibold text-lg"
             prefetch={false}>
-            <Package2Icon className="h-6 w-6" />
-            <span>Satoshi's List</span>
+            
+            <span>DegenBaazar</span>
           </Link>
-          <div className="relative flex-1 max-w-md">
-            <SearchIcon
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search for products or services..."
-              className="w-full rounded-lg bg-muted pl-10 pr-4 py-2 text-sm" />
-          </div>
+         
           <div className="hidden md:flex items-center gap-4">
             <Link
-              href="#"
-              className="text-sm font-medium hover:text-primary"
+              href="/create-listing"
+              className="text-sm  hover:text-primary"
               prefetch={false}>
-              Dashboard
+              create listing
             </Link>
             <Link
               href="#"
-              className="text-sm font-medium hover:text-primary"
+              className="text-sm hover:text-primary"
               prefetch={false}>
-              Swap
+              connect wallet
             </Link>
-            <Link
-              href="#"
-              className="text-sm font-medium hover:text-primary"
-              prefetch={false}>
-              Inbox
-            </Link>
-            <Button size="sm">Sell</Button>
+            {user ? (
+              <>
+                <Link
+                  href="#"
+                  className="text-sm font-medium hover:text-primary"
+                  prefetch={false}>
+                  My Listings
+                </Link>
+                <Link
+                  href="#"
+                  className="text-sm font-medium hover:text-primary"
+                  prefetch={false}>
+                  Messages
+                </Link>
+                <Button size="sm">Profile</Button>
+              </>
+            ) : (
+              <>
+                
+                <Button size="sm" variant="outline">Login</Button>
+              </>
+            )}
           </div>
           <Sheet>
             <SheetTrigger asChild>
@@ -74,15 +83,15 @@ export default async function home() {
               <div className="flex flex-col gap-4 py-4">
                 <div className="flex items-center gap-2 font-semibold text-lg">
                   <Package2Icon className="h-6 w-6" />
-                  <span>Decentralized Marketplace</span>
+                  <span>Satoshi's List</span>
                 </div>
                 <nav className="grid gap-2">
                   <Link
                     href="#"
                     className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
                     prefetch={false}>
-                    <LayoutDashboardIcon className="h-4 w-4" />
-                    <span>Dashboard</span>
+                    <SearchIcon className="h-4 w-4" />
+                    <span>Search</span>
                   </Link>
                   <Link
                     href="#"
@@ -91,176 +100,76 @@ export default async function home() {
                     <ShuffleIcon className="h-4 w-4" />
                     <span>Swap</span>
                   </Link>
-                  <Link
-                    href="#"
-                    className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                    prefetch={false}>
-                    <InboxIcon className="h-4 w-4" />
-                    <span>Inbox</span>
-                  </Link>
-                  <Button size="sm" className="w-full">
-                    Sell
-                  </Button>
-                </nav>
-              </div>
-              <div className="hidden md:block">
-                <h2 className="text-lg font-semibold mb-4">Categories</h2>
-                <nav className="grid gap-2">
-                  <Link
-                    href="#"
-                    className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                    prefetch={false}>
-                    <ShoppingBagIcon className="h-4 w-4" />
-                    <span>Electronics</span>
-                  </Link>
-                  <Link
-                    href="#"
-                    className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                    prefetch={false}>
-                    <ShirtIcon className="h-4 w-4" />
-                    <span>Clothing</span>
-                  </Link>
-                  <Link
-                    href="#"
-                    className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                    prefetch={false}>
-                    <TruckIcon className="h-4 w-4" />
-                    <span>Home &amp; Garden</span>
-                  </Link>
-                  <Link
-                    href="#"
-                    className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                    prefetch={false}>
-                    <BookOpenIcon className="h-4 w-4" />
-                    <span>Books</span>
-                  </Link>
-                  <Link
-                    href="#"
-                    className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                    prefetch={false}>
-                    <PuzzleIcon className="h-4 w-4" />
-                    <span>Toys Games</span>
-                  </Link>
+                  {user ? (
+                    <>
+                      <Link
+                        href="#"
+                        className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
+                        prefetch={false}>
+                        <LayoutDashboardIcon className="h-4 w-4" />
+                        <span>My Listings</span>
+                      </Link>
+                      <Link
+                        href="#"
+                        className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
+                        prefetch={false}>
+                        <InboxIcon className="h-4 w-4" />
+                        <span>Messages</span>
+                      </Link>
+                      <Button size="sm" className="w-full">
+                        Profile
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/create-listing"
+                        className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
+                        prefetch={false}>
+                        <ShoppingBagIcon className="h-4 w-4" />
+                        <span>Create Listing</span>
+                      </Link>
+                      <Button size="sm" variant="outline" className="w-full">
+                       <Link href="/components/AuthForm">Login</Link>
+                      </Button>
+                    </>
+                  )}
                 </nav>
               </div>
             </SheetContent>
           </Sheet>
         </div>
       </header>
-      <main className="flex-1 container px-4 md:px-6 py-8">
-        <div className="grid md:grid-cols-[240px_1fr] gap-8">
-          <div className="hidden md:block">
-            <h2 className="text-lg font-semibold mb-4">Categories</h2>
-            <nav className="grid gap-2">
-              <Link
-                href="#"
-                className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                prefetch={false}>
-                <ShoppingBagIcon className="h-4 w-4" />
-                <span>Electronics</span>
-              </Link>
-              <Link
-                href="#"
-                className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                prefetch={false}>
-                <ShirtIcon className="h-4 w-4" />
-                <span>Clothing</span>
-              </Link>
-              <Link
-                href="#"
-                className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                prefetch={false}>
-                <TruckIcon className="h-4 w-4" />
-                <span>Home Garden</span>
-              </Link>
-              <Link
-                href="#"
-                className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                prefetch={false}>
-                <BookOpenIcon className="h-4 w-4" />
-                <span>Books</span>
-              </Link>
-              <Link
-                href="#"
-                className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
-                prefetch={false}>
-                <PuzzleIcon className="h-4 w-4" />
-                <span>Toys Games</span>
-              </Link>
-            </nav>
-          </div>
+      <main className="flex-1  px-4 md:px-6 py-8">
+        <div>
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Featured Listings</h2>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <MapPinIcon className="h-4 w-4" />
-                    <span>Location</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-4 w-64">
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="city">City</Label>
-                      <Input id="city" type="text" placeholder="Enter city" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="state">State</Label>
-                      <Input id="state" type="text" placeholder="Enter state" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="country">Country</Label>
-                      <Input id="country" type="text" placeholder="Enter country" />
-                    </div>
-                    <Button className="w-full">Apply</Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {listings && listings.map((listing) => (
-                <Card key={listing.id}>
-                  <img
-                    src={listing.image_url || "/placeholder.svg"}
-                    alt={listing.title}
-                    width={400}
-                    height={300}
-                    className="rounded-t-lg object-cover w-full aspect-[4/3]" />
-                  <CardContent className="p-4">
-                    <div className="text-primary font-semibold">${listing.price} USDC</div>
-                    <h3 className="text-lg font-semibold">{listing.title}</h3>
-                    <p className="text-muted-foreground text-sm">{listing.location}</p>
-                  </CardContent>
-                </Card>
-              ))}
+            <h1 className="text-xl font-semibold mt-8 text-center">Buy and Sell anything with Stablecoins</h1>
+            <SearchBar />
+            <div className="px-16">
+              <h3 className="text-lg font-semibold my-4">Recent Listings</h3>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-6">
+                {listings && listings.map((listing) => (
+                  <Link href={`/listing/${listing.id}`} key={listing.id}>
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                      <img
+                        src={listing.image_url || "/placeholder.svg"}
+                        alt={listing.title}
+                        width={400}
+                        height={300}
+                        className="rounded-t-lg object-cover w-full aspect-[4/3]" />
+                      <CardContent className="p-4">
+                        <div className="text-primary font-semibold">${listing.price} USDC</div>
+                        <h3 className="text-lg font-semibold">{listing.title}</h3>
+                        <p className="text-muted-foreground text-sm">{listing.location}</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </main>
-      <footer className="bg-muted/40 py-6">
-        <div
-          className="container px-4 md:px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Package2Icon className="h-6 w-6" />
-            <span className="font-semibold">Satoshi's List</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="#" className="text-sm hover:text-primary" prefetch={false}>
-              About
-            </Link>
-            <Link href="#" className="text-sm hover:text-primary" prefetch={false}>
-              Contact
-            </Link>
-            <Link href="#" className="text-sm hover:text-primary" prefetch={false}>
-              Privacy Policy
-            </Link>
-            <Link href="#" className="text-sm hover:text-primary" prefetch={false}>
-              Terms of Service
-            </Link>
-          </div>
-        </div>
-      </footer>
     </div>)
   );
 }
