@@ -42,6 +42,36 @@ export default function CreateListing() {
 
   const supabase = createClientComponentClient()
 
+  
+
+
+
+  async function uploadImage(imageFile) {
+    try {
+      // Upload the image file to the 'listing-images' bucket in Supabase
+      const { data, error } = await supabase.storage
+        .from('listing-images')
+        .upload(imageFile.name, imageFile)
+  
+      if (error) {
+        console.error('Error uploading image:', error)
+        return null
+      }
+  
+      // Get the public URL of the uploaded image
+      const publicUrl = supabase.storage
+        .from('listing-images')
+        .getPublicUrl(data.path)
+  
+      console.log('Public URL:', publicUrl.publicUrl)
+      return publicUrl.publicUrl
+    } catch (err) {
+      console.error('Error occurred:', err)
+      return null
+    }
+  }
+
+
   const fetchCategories = async () => {
     const { data, error } = await supabase
       .from('categories')
@@ -70,133 +100,97 @@ export default function CreateListing() {
     }
   }
 
-  const handleImageUpload = async (e) => {
-    console.log('handleImageUpload called')
+  const handleImageChange = (e) => {
     const files = Array.from(e.target.files)
-    console.log('Files selected:', files)
-    if (files.length > 0) {
-      const newImageFiles = [...imageFiles, ...files].slice(0, 5)
-      setImageFiles(newImageFiles)
-      console.log('New image files:', newImageFiles)
-      
-      const newImagePreviews = newImageFiles.map(file => URL.createObjectURL(file))
-      setImagePreviews(newImagePreviews)
-      console.log('New image previews:', newImagePreviews)
-    }
+    const images = files.map(file => URL.createObjectURL(file))
+    setImageFiles(files)
+    setImagePreviews(images)
   }
-
-  const deleteImage = (index) => {
-    console.log('deleteImage called with index:', index)
-    const newImageFiles = [...imageFiles]
-    const newImagePreviews = [...imagePreviews]
-    newImageFiles.splice(index, 1)
-    newImagePreviews.splice(index, 1)
-    setImageFiles(newImageFiles)
-    setImagePreviews(newImagePreviews)
-    console.log('Updated image files:', newImageFiles)
-    console.log('Updated image previews:', newImagePreviews)
-    if (currentPreviewIndex >= newImagePreviews.length) {
-      setCurrentPreviewIndex(Math.max(0, newImagePreviews.length - 1))
-    }
-  }
-
-  const uploadImages = async () => {
-    console.log('uploadImages called')
-  
-    if (imageFiles.length === 0) {
-      console.log('No image files to upload')
-      return []
-    }
-  
-    console.log('Image files:', imageFiles)
-  
-    const uploadPromises = imageFiles.map(async (file) => {
-      const fileName = `${Date.now()}-${file.name}`
-      console.log('Uploading file:', fileName)
-  
-      const { data, error } = await supabase.storage
-        .from('new-bucket')
-        .upload(fileName, file)
-  
-      if (error) {
-        console.error('Error uploading image:', error)
-        return null
-      }
-  
-      console.log('Image uploaded successfully:', fileName)
-  
-      const { data: publicUrlData } = supabase.storage
-        .from('listing-images')
-        .getPublicUrl(fileName)
-  
-      if (!publicUrlData || !publicUrlData.publicUrl) {
-        console.error('Error getting public URL for image')
-        return null
-      }
-  
-      console.log('Public URL created:', publicUrlData.publicUrl)
-      return publicUrlData.publicUrl
-    })
-  
-    console.log('Upload promises:', uploadPromises)
-  
-    const uploadedUrls = await Promise.all(uploadPromises)
-    console.log('Uploaded URLs:', uploadedUrls)
-    return uploadedUrls.filter(url => url !== null)
-  }
-  
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log('handleSubmit called')
     setError(null)
-
+  
     if (!connected || !publicKey || !userId) {
       setError('Please connect your wallet to create a listing')
       return
     }
-
+  
     if (!title || !description || !price || !categoryId || !condition || !location || 
-        !transactionType ) {
+        !transactionType || imageFiles.length === 0) {
       setError('Please fill in all required fields and upload at least one image')
       return
     }
-
+  
     console.log('Uploading images...')
-    //const imageUrls = await uploadImages()
-    //if (imageUrls.length === 0) {
-      //console.error('No image URLs returned')
-      //setError('Error uploading images')
-      //return
-    //}
-    //console.log('Image URLs:', imageUrls)
+  
+    try {
+      // Upload images and wait for all uploads to complete before continuing
+      const imageUrls = await Promise.all(imageFiles.map(async (file) => {
+        const { data, error } = await supabase.storage
+          .from('new-bucket')
+          .upload(file.name, file)
+  
+        if (error) {
+          console.error('Error uploading image:', error)
+          return null
+        }
+  
+        // Get the public URL of the uploaded image
+        const { data: publicUrlData, error: urlError } = supabase.storage
+      .from('new-bucket')
+      .getPublicUrl(data.path)
 
-    console.log('Creating listing...')
-    const { data, error } = await supabase
-      .from('listing')
-      .insert([
-        {
-          user_id: userId,
-          title,
-          description,
-          price: parseFloat(price),
-          category_id: parseInt(categoryId),
-          condition,
-          location,
-          transaction_type: transactionType,
-          contact_email: contactEmail,
-          contact_phone: contactPhone,
-        },
-      ])
+    if (urlError) {
+      console.error('Error fetching public URL:', urlError)
+      return null
+    }
 
-    if (error) {
-      setError('Error creating listing')
-      console.error('Error creating listing:', error)
-    } else {
-      console.log('Listing created successfully')
-      router.push('/my-listings')
+    console.log(publicUrlData.publicUrl); // Correct access to publicUrl
+    return publicUrlData.publicUrl
+      }))
+  
+      // Ensure at least one image was uploaded successfully
+      const validImageUrls = imageUrls.filter(Boolean)
+      if (validImageUrls.length === 0) {
+        setError('Failed to upload images')
+        return
+      }
+  
+      console.log('Image URLs:', validImageUrls)
+  
+      // Now create the listing with the valid image URLs
+      const { data, error } = await supabase
+        .from('listing')
+        .insert([
+          {
+            user_id: userId,
+            title,
+            description,
+            price: parseFloat(price),
+            category_id: parseInt(categoryId),
+            condition,
+            location,
+            transaction_type: transactionType,
+            contact_email: contactEmail,
+            contact_phone: contactPhone,
+            image_urls: validImageUrls, // Use valid image URLs
+          },
+        ])
+  
+      if (error) {
+        setError('Error creating listing')
+        console.error('Error creating listing:', error)
+      } else {
+        console.log('Listing created successfully')
+        router.push('/my-listings')
+      }
+    } catch (error) {
+      setError('An error occurred during the upload process')
+      console.error('Error:', error)
     }
   }
+  
 
   if (!connected) {
     return <div>Please connect your wallet to create a listing.</div>
@@ -206,44 +200,7 @@ export default function CreateListing() {
     <div className="max-w-md mx-auto mt-10">
       <h1 className="text-2xl font-bold mb-5">Create Crypto Listing</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
-       
-        {imagePreviews.length > 0 && (
-          <div className="mt-4">
-            <Label>Image Preview</Label>
-            <div className="relative w-full aspect-video">
-              <Image
-                src={imagePreviews[currentPreviewIndex]}
-                alt={`Preview ${currentPreviewIndex + 1}`}
-                layout="fill"
-                objectFit="contain"
-              />
-              <Button
-                type="button"
-                className="absolute top-2 right-2 p-1 bg-white bg-opacity-70 hover:bg-opacity-100"
-                onClick={() => deleteImage(currentPreviewIndex)}
-              >
-                <X size={20} />
-              </Button>
-            </div>
-            <div className="flex justify-between items-center mt-2">
-              <Button
-                type="button"
-                onClick={() => setCurrentPreviewIndex((prev) => (prev > 0 ? prev - 1 : imagePreviews.length - 1))}
-                className="p-1"
-              >
-                <ChevronLeft size={20} />
-              </Button>
-              <span>{currentPreviewIndex + 1} / {imagePreviews.length}</span>
-              <Button
-                type="button"
-                onClick={() => setCurrentPreviewIndex((prev) => (prev < imagePreviews.length - 1 ? prev + 1 : 0))}
-                className="p-1"
-              >
-                <ChevronRight size={20} />
-              </Button>
-            </div>
-          </div>
-        )}
+     
         <div>
           <Label htmlFor="title">Title</Label>
           <Input
@@ -341,7 +298,31 @@ export default function CreateListing() {
             onChange={(e) => setContactPhone(e.target.value)}
           />
         </div>
-        
+        <div>
+          <Label htmlFor="image">Image</Label>
+          <Input
+            id="image"
+            type="file"
+            multiple
+            onChange={handleImageChange}
+            required
+          />
+          {imagePreviews.length > 0 && (
+            <div className="flex space-x-4">
+              {imagePreviews.map((preview, index) => (
+                <Image
+                  key={index}
+                  src={preview}
+                  alt={`Image ${index + 1}`}
+                  width={100}
+                  height={100}
+                  objectFit="cover"
+                  className="rounded-lg"
+                />
+              ))}
+            </div>
+          )}
+        </div>
         
         {error && <p className="text-red-500">{error}</p>}
         <Button type="submit">Create Crypto Listing</Button>
