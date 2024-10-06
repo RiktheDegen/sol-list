@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, MessageSquare, ShoppingCart, Edit } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, ShoppingCart, Edit, Send } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import Link from 'next/link'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useWallet } from '@solana/wallet-adapter-react'
+import Link from 'next/link'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ListingPage({ params }) {
   const [listing, setListing] = useState(null)
@@ -19,12 +21,74 @@ export default function ListingPage({ params }) {
   const [editedPrice, setEditedPrice] = useState('')
   const [newImages, setNewImages] = useState([])
   const [isOwner, setIsOwner] = useState(false)
+  const [messages, setMessages] = useState([])
+  const [newMessage, setNewMessage] = useState('')
+  const [status, setStatus] = useState('active')
+  const messagesEndRef = useRef(null)
   const supabase = createClientComponentClient()
-  const { publicKey } = useWallet()
+  const { publicKey, connected } = useWallet()
 
   useEffect(() => {
     fetchListing()
-  }, [])
+    if (connected && publicKey) {
+      subscribeToMessages()
+    }
+  }, [connected, publicKey])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  const subscribeToMessages = () => {
+    const channel = supabase
+      .channel(`listing_${params.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `listing_id=eq.${params.id}` }, 
+        payload => {
+          setMessages(prevMessages => [...prevMessages, payload.new])
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }
+
+  const fetchMessages = async () => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('listing_id', params.id)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching messages:', error)
+    } else {
+      setMessages(data)
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        listing_id: params.id,
+        sender_id: publicKey.toString(),
+        content: newMessage
+      })
+
+    if (error) {
+      console.error('Error sending message:', error)
+    } else {
+      setNewMessage('')
+    }
+  }
 
   const fetchListing = async () => {
     const { data, error } = await supabase
@@ -40,6 +104,7 @@ export default function ListingPage({ params }) {
       setEditedTitle(data.title)
       setEditedDescription(data.description)
       setEditedPrice(data.price.toString())
+      setStatus(data.status)
       
       // Check if the current user is the owner of the listing
       if (publicKey) {
@@ -111,6 +176,19 @@ export default function ListingPage({ params }) {
     setCurrentImageIndex((prevIndex) => 
       prevIndex === 0 ? listing.image_urls.length - 1 : prevIndex - 1
     )
+  }
+
+  const updateListingStatus = async (newStatus) => {
+    const { error } = await supabase
+      .from('listing')
+      .update({ status: newStatus })
+      .eq('id', listing.id)
+
+    if (error) {
+      console.error('Error updating listing status:', error)
+    } else {
+      setStatus(newStatus)
+    }
   }
 
   if (!listing) {
@@ -199,21 +277,37 @@ export default function ListingPage({ params }) {
 
                 <div className="flex space-x-4 mb-4">
                   {isOwner ? (
-                    <Button onClick={handleEdit} className="flex items-center justify-center py-3">
-                      <Edit className="mr-2" size={20} />
-                      Edit Listing
-                    </Button>
-                  ) : (
                     <>
-                      <Button className="flex-1 flex items-center justify-center py-3">
-                        <ShoppingCart className="mr-2" size={20} />
-                        Buy Now
+                      <Button onClick={handleEdit} className="flex items-center justify-center py-3">
+                        <Edit className="mr-2" size={20} />
+                        Edit Listing
                       </Button>
-                      <Button variant="outline" className="flex-1 flex items-center justify-center py-3">
-                        <MessageSquare className="mr-2" size={20} />
-                        Message Seller
-                      </Button>
+                      <Select value={status} onValueChange={updateListingStatus}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="sold">Sold</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </>
+                  ) : connected ? (
+                    <>
+                      <Button className="flex-1 flex items-center justify-center py-3" disabled={status !== 'active'}>
+                        <ShoppingCart className="mr-2" size={20} />
+                        {status === 'active' ? 'Buy Now' : (status === 'pending' ? 'Pending' : 'Sold')}
+                      </Button>
+                      <Link href={`/inbox?listing=${params.id}`} passHref>
+                        <Button variant="outline" className="flex-1 flex items-center justify-center py-3">
+                          <MessageSquare className="mr-2" size={20} />
+                          Message Seller
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <p>Please connect your wallet to interact with this listing.</p>
                   )}
                 </div>
               </>

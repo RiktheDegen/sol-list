@@ -18,7 +18,7 @@ const SearchBar = () => {
         type="text"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-64 h-8 px-2 text-sm bg-gray-300 border-black rounded-sm"
+        className="w-64 h-8 px-2 text-sm bg-gray-300 rounded-sm border-b-4"
       />
       <button
         type="submit"

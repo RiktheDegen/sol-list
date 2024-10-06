@@ -66,15 +66,15 @@ export default function Navbar() {
           </Link>
          
           <div className="hidden md:flex items-center gap-4">
-            {connected && (
+            
               <Link
                 href="/create-listing"
                 className="text-sm hover:text-primary"
                 prefetch={false}>
                 Create Listing
               </Link>
-            )}
-            {connected && (
+          
+            
               <>
                 <Link
                   href="/my-listings"
@@ -82,16 +82,11 @@ export default function Navbar() {
                   prefetch={false}>
                   My Listings
                 </Link>
-                <Link
-                  href="#"
-                  className="text-sm font-medium hover:text-primary"
-                  prefetch={false}>
-                  Messages
-                </Link>
                 <Link href="/profile" className="text-sm font-medium hover:text-primary" prefetch={false}>Profile</Link>
+                <Link href="/inbox" className="text-sm font-medium hover:text-primary" prefetch={false}>Messages</Link>
               </>
-            )}
-            <WalletMultiButton />
+            
+            <WalletMultiButton style={{ backgroundColor: '#FFFFFF', color: '#030712',fontFamily:'Inter', fontSize:'14px'}} />
             
           </div>
           <Sheet>
@@ -103,14 +98,16 @@ export default function Navbar() {
             </SheetTrigger>
             <SheetContent side="left" className="md:hidden">
               {/* Mobile menu content */}
-              {connected && (
+              
                 <>
-                  <Link href="/create-listing" className="block py-2">Create Listing</Link>
+                  <Link href="/create-listing" className="block py-2 font-medium">Create Listing</Link>
                   <Link href="/my-listings" className="block py-2">My Listings</Link>
                   <Link href="#" className="block py-2">Messages</Link>
                   <Link href="/profile" className="block py-2">Profile</Link>
+                  <WalletMultiButton style={{ backgroundColor: '#FFFFFF', color: '#030712',fontFamily:'Inter', fontSize:'14px'}} />
+
                 </>
-              )}
+              
             </SheetContent>
           </Sheet>
         </div>
