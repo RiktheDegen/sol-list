@@ -65,21 +65,27 @@ export default function Navbar() {
       <div className="px-4 md:px-6 py-4 flex items-center justify-between">
         <Link
           href="/"
-          className="flex items-center gap-2 font-semibold text-lg"
+          className="flex items-center gap-2 font-semibold text-xl text-[#2b2b2b]"
           prefetch={false}>
           <span>DegenBaazar</span>
         </Link>
        
         <div className="hidden md:flex items-center gap-4">
-          <Link href="/create-listing" className="text-sm hover:text-primary" prefetch={false}>
+          <Link href="/create-listing" className="text-sm font-semibold text-[#2b2b2b] hover:text-primary" prefetch={false}>
             Create Listing
           </Link>
-          <Link href="/my-listings" className="text-sm font-medium hover:text-primary" prefetch={false}>
-            My Listings
+          <Link href="/my-listings" className="text-sm font-semibold text-[#2b2b2b]hover:text-primary" prefetch={false}>
+              My Listings
           </Link>
-          <Link href="/profile" className="text-sm font-medium hover:text-primary" prefetch={false}>Profile</Link>
-          <Link href="/inbox" className="text-sm font-medium hover:text-primary" prefetch={false}>Messages</Link>
-          <Link href="/swap" className="text-sm font-medium hover:text-primary" prefetch={false}>Swap</Link>
+          <Link href="/profile" className="text-sm font-semibold text-[#2b2b2b]hover:text-primary" prefetch={false}>
+              Profile
+          </Link>
+          <Link href="/inbox" className="text-sm font-semibold text-[#2b2b2b] hover:text-primary" prefetch={false}>
+              Messages
+          </Link>
+          <Link href="/swap" className="text-sm font-semibold text-[#2b2b2b] hover:text-primary" prefetch={false}>
+              Swap
+          </Link>
           <WalletMultiButton style={{ backgroundColor: '#FFFFFF', color: '#030712',fontFamily:'Inter', fontSize:'14px'}} />
         </div>
         <Sheet>
@@ -90,7 +96,7 @@ export default function Navbar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="md:hidden">
-            <Link href="/create-listing" className="block py-2 font-medium">Create Listing</Link>
+              <Link href="/create-listing" className="block py-2">Create Listing</Link>
             <Link href="/my-listings" className="block py-2">My Listings</Link>
             <Link href="/inbox" className="block py-2">Messages</Link>
             <Link href="/profile" className="block py-2">Profile</Link>

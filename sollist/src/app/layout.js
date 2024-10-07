@@ -1,17 +1,15 @@
 'use client'
 
-import { Inter } from "next/font/google";
+import { gilroy } from '../../fonts'; // Import the gilroy font
 import "./globals.css";
 import { SolanaWalletProvider } from '@/components/SolanaWalletProvider';
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 
-const inter = Inter({ subsets: ["latin"] });
-
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className={`${gilroy.variable} font-sans`}>
+      <body className={gilroy.className}>
         <div className="flex flex-col min-h-screen">
           <SolanaWalletProvider>
             <Navbar />

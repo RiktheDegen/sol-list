@@ -92,7 +92,7 @@ export default function MyListings() {
                 </CardContent>
               </Link>
               <Button
-                
+                variant="destructive"
                 size="icon"
                 className="absolute top-2 right-2"
                 onClick={() => deleteListing(listing.id)}
