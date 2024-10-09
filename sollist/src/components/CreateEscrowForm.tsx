@@ -5,6 +5,20 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { BN } from "@coral-xyz/anchor";
 import { createEscrow } from "@/lib/client";
 import { useEscrowProgram } from "@/lib/useEscrowProgram";
+import { PublicKey } from "@solana/web3.js";
+
+const TOKEN_OPTIONS = [
+  {
+    label: "USDC",
+    mintAddress: "9vxL9ZauTmHe55H4sXZoWvxJVyFdrzaqNBawBmtDx1ww", // USDC Devnet
+    decimals: 6,
+  },
+  {
+    label: "SOL",
+    mintAddress: "So11111111111111111111111111111111111111112", // WSOL
+    decimals: 9,
+  },
+];
 
 const CreateEscrowForm = () => {
   const { publicKey } = useWallet();
@@ -14,10 +28,11 @@ const CreateEscrowForm = () => {
     id: "",
     buyer: "",
     arbiter: "",
-    tokenMint: "9vxL9ZauTmHe55H4sXZoWvxJVyFdrzaqNBawBmtDx1ww", // Pre-filled with USDC Devnet Address
+    token: TOKEN_OPTIONS[0].label, // Default to USDC
     amount: "",
     duration: "",
   });
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", content: "" });
 
   const handleChange: ChangeEventHandler<any> = (e) => {
@@ -34,21 +49,62 @@ const CreateEscrowForm = () => {
       return;
     }
 
+    // Basic validation
+    if (
+      !formValues.id ||
+      !formValues.buyer ||
+      !formValues.amount ||
+      !formValues.duration
+    ) {
+      setMessage({
+        type: "error",
+        content: "Please fill in all required fields.",
+      });
+      return;
+    }
+
+    setLoading(true);
+    setMessage({ type: "", content: "" });
+
     try {
+      const selectedToken = TOKEN_OPTIONS.find(
+        (token) => token.label === formValues.token
+      );
+      if (!selectedToken) {
+        throw new Error("Invalid token selected");
+      }
+
+      // Convert amount to smallest unit
+      const amountInSmallestUnit = new BN(
+        Number(formValues.amount) * Math.pow(10, selectedToken.decimals)
+      );
+
       await createEscrow(program, new BN(formValues.id), {
         buyer: formValues.buyer,
         arbiter: formValues.arbiter,
-        tokenMint: formValues.tokenMint,
-        amount: new BN(formValues.amount),
+        tokenMint: selectedToken.mintAddress,
+        amount: amountInSmallestUnit,
         duration: new BN(formValues.duration),
       });
       setMessage({ type: "success", content: "Escrow created successfully." });
+
+      // Reset form after success
+      setFormValues({
+        id: "",
+        buyer: "",
+        arbiter: "",
+        token: TOKEN_OPTIONS[0].label,
+        amount: "",
+        duration: "",
+      });
     } catch (error) {
       console.error("Error creating escrow:", error);
       setMessage({
         type: "error",
         content: `Error: ${(error as Error).message}`,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -96,23 +152,41 @@ const CreateEscrowForm = () => {
             onChange={handleChange}
             className="border border-gray-300 p-2 rounded w-full"
           />
-          <input
-            type="text"
-            name="tokenMint"
-            placeholder="Token Mint Address"
-            value={formValues.tokenMint}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded w-full"
-            disabled
-          />
-          <input
-            type="number"
-            name="amount"
-            placeholder="Amount (in smallest unit)"
-            value={formValues.amount}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded w-full"
-          />
+
+          {/* Token Selector */}
+          <div className="flex space-x-4">
+            <div className="w-1/2">
+              <label className="block text-gray-700">Token</label>
+              <select
+                name="token"
+                value={formValues.token}
+                onChange={handleChange}
+                className="border border-gray-300 p-2 rounded w-full"
+              >
+                {TOKEN_OPTIONS.map((token) => (
+                  <option key={token.label} value={token.label}>
+                    {token.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="w-1/2">
+              <label className="block text-gray-700">
+                Amount ({formValues.token})
+              </label>
+              <input
+                type="number"
+                name="amount"
+                placeholder="Amount"
+                value={formValues.amount}
+                onChange={handleChange}
+                className="border border-gray-300 p-2 rounded w-full"
+                step="any"
+              />
+            </div>
+          </div>
+
+          {/* Duration */}
           <input
             type="number"
             name="duration"
@@ -124,10 +198,12 @@ const CreateEscrowForm = () => {
         </div>
         <button
           type="submit"
-          className="mt-6 w-full px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          disabled={!publicKey}
+          className={`mt-6 w-full px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          disabled={!publicKey || loading}
         >
-          Create Escrow
+          {loading ? "Creating Escrow..." : "Create Escrow"}
         </button>
       </form>
     </div>

@@ -3,7 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useEscrowProgram } from "@/lib/useEscrowProgram";
-import { PublicKey } from "@solana/web3.js";
+import {
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
 import { BN, ProgramAccount } from "@coral-xyz/anchor";
 import {
   fundEscrow,
@@ -12,6 +17,14 @@ import {
   withdrawEscrow,
 } from "@/lib/client";
 import CreateEscrowForm from "@/components/CreateEscrowForm";
+import {
+  TOKEN_PROGRAM_ID,
+  NATIVE_MINT,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createSyncNativeInstruction,
+  createCloseAccountInstruction,
+} from "@solana/spl-token";
 
 type EscrowData = ProgramAccount<{
   version: number;
@@ -28,38 +41,47 @@ type EscrowData = ProgramAccount<{
   bump: number;
 }>;
 
+const TOKEN_INFO: { [key: string]: { symbol: string; decimals: number } } = {
+  "9vxL9ZauTmHe55H4sXZoWvxJVyFdrzaqNBawBmtDx1ww": {
+    symbol: "USDC",
+    decimals: 6,
+  },
+  [NATIVE_MINT.toBase58()]: { symbol: "SOL", decimals: 9 },
+};
+
 const EscrowApp = () => {
-  const { publicKey } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
   const { program } = useEscrowProgram();
   const [escrows, setEscrows] = useState<EscrowData[]>([]);
   const [message, setMessage] = useState({ type: "", content: "" });
+  const [loading, setLoading] = useState(false);
 
   // Fetch escrows where the user is the buyer or seller
+  const fetchEscrows = async () => {
+    if (!program || !publicKey) {
+      setEscrows([]); // Clear escrows when wallet is disconnected
+      return;
+    }
+
+    try {
+      // Fetch all escrows
+      const escrowAccounts = await program.account.escrow.all();
+
+      // Filter escrows where the user is the buyer or seller
+      const userEscrows = escrowAccounts.filter((account) => {
+        const escrow = account.account;
+        return (
+          escrow.buyer.equals(publicKey) || escrow.seller.equals(publicKey)
+        );
+      });
+
+      setEscrows(userEscrows);
+    } catch (error) {
+      console.error("Error fetching escrows:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchEscrows = async () => {
-      if (!program || !publicKey) {
-        setEscrows([]); // Clear escrows when wallet is disconnected
-        return;
-      }
-
-      try {
-        // Fetch all escrows
-        const escrowAccounts = await program.account.escrow.all();
-
-        // Filter escrows where the user is the buyer or seller
-        const userEscrows = escrowAccounts.filter((account) => {
-          const escrow = account.account;
-          return (
-            escrow.buyer.equals(publicKey) || escrow.seller.equals(publicKey)
-          );
-        });
-
-        setEscrows(userEscrows);
-      } catch (error) {
-        console.error("Error fetching escrows:", error);
-      }
-    };
-
     fetchEscrows();
   }, [program, publicKey]);
 
@@ -76,7 +98,70 @@ const EscrowApp = () => {
       return;
     }
 
+    setLoading(true);
+    setMessage({ type: "", content: "" });
+
     try {
+      const connection = program.provider.connection;
+      const tokenMintAddress = escrow.tokenMint.toBase58();
+      const tokenInfo = TOKEN_INFO[tokenMintAddress] || {
+        symbol: "TOKEN",
+        decimals: 6,
+      };
+
+      // If the action is 'fund' and the token is SOL, wrap SOL to WSOL
+      if (action === "fund" && tokenInfo.symbol === "SOL") {
+        let blockhash = (await connection.getLatestBlockhash("finalized"))
+          .blockhash;
+        // Compute the buyer's associated token account for WSOL
+        const ata = await getAssociatedTokenAddress(
+          NATIVE_MINT,
+          publicKey,
+          false
+        );
+
+        // Check if the ATA exists
+        const ataInfo = await connection.getAccountInfo(ata);
+
+        const instructions = [];
+
+        // If the ATA doesn't exist, create it
+        if (!ataInfo) {
+          instructions.push(
+            createAssociatedTokenAccountInstruction(
+              publicKey,
+              ata,
+              publicKey,
+              NATIVE_MINT
+            )
+          );
+        }
+
+        // Transfer SOL to the WSOL ATA (wrapping SOL)
+        instructions.push(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: ata,
+            lamports: escrow.amount.toNumber(),
+          })
+        );
+
+        // Sync the native account
+        instructions.push(createSyncNativeInstruction(ata));
+
+        const transaction = new Transaction().add(...instructions);
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
+
+        // Sign and send the transaction
+        const signedTransaction = await signTransaction(transaction);
+        const txid = await connection.sendRawTransaction(
+          signedTransaction.serialize()
+        );
+        await connection.confirmTransaction(txid, "confirmed");
+      }
+
+      // Proceed with the action
       switch (action) {
         case "fund":
           await fundEscrow(
@@ -109,10 +194,7 @@ const EscrowApp = () => {
           break;
         case "withdraw":
           await withdrawEscrow(program, new BN(escrow.id));
-          setMessage({
-            type: "success",
-            content: "Withdrawal successful.",
-          });
+          setMessage({ type: "success", content: "Withdrawal successful." });
           break;
         default:
           break;
@@ -123,18 +205,10 @@ const EscrowApp = () => {
         type: "error",
         content: `Error: ${(error as Error).message}`,
       });
-    }
-
-    // Refresh escrows after action
-    if (program && publicKey) {
-      const escrowAccounts = await program.account.escrow.all();
-      const userEscrows = escrowAccounts.filter((account) => {
-        const escrow = account.account;
-        return (
-          escrow.buyer.equals(publicKey) || escrow.seller.equals(publicKey)
-        );
-      });
-      setEscrows(userEscrows);
+    } finally {
+      setLoading(false);
+      // Refresh escrows after action
+      await fetchEscrows();
     }
   };
 
@@ -194,7 +268,7 @@ const EscrowApp = () => {
                     <th className="py-2 px-4 border">Buyer</th>
                     <th className="py-2 px-4 border">Seller</th>
                     <th className="py-2 px-4 border">Amount</th>
-                    <th className="py-2 px-4 border">Token Mint</th>
+                    <th className="py-2 px-4 border">Token</th>
                     <th className="py-2 px-4 border">Actions</th>
                   </tr>
                 </thead>
@@ -210,10 +284,19 @@ const EscrowApp = () => {
                     const role = isSeller ? "Seller" : "Buyer";
                     const state = getEscrowState(escrow.state);
 
-                    // Format amount (assuming token has 6 decimals like USDC)
+                    // Get token info
+                    const tokenInfo = TOKEN_INFO[
+                      escrow.tokenMint.toBase58()
+                    ] || {
+                      symbol: "TOKEN",
+                      decimals: 6,
+                    };
+
+                    // Format amount
                     const amountFormatted = (
-                      escrow.amount.toNumber() / 1e6
-                    ).toFixed(2);
+                      escrow.amount.toNumber() /
+                      Math.pow(10, tokenInfo.decimals)
+                    ).toFixed(tokenInfo.decimals);
 
                     // Shorten buyer and seller addresses for display
                     const buyerAddressShort = `${escrow.buyer
@@ -222,11 +305,6 @@ const EscrowApp = () => {
                     const sellerAddressShort = `${escrow.seller
                       .toBase58()
                       .slice(0, 4)}...${escrow.seller.toBase58().slice(-4)}`;
-
-                    // Shorten token mint address
-                    const tokenMintShort = `${escrow.tokenMint
-                      .toBase58()
-                      .slice(0, 4)}...${escrow.tokenMint.toBase58().slice(-4)}`;
 
                     // Determine available actions based on role and state
                     const actions = [];
@@ -258,19 +336,22 @@ const EscrowApp = () => {
                           {sellerAddressShort}
                         </td>
                         <td className="py-2 px-4 text-center border">
-                          {amountFormatted}
+                          {amountFormatted} {tokenInfo.symbol}
                         </td>
                         <td className="py-2 px-4 text-center border">
-                          {tokenMintShort}
+                          {tokenInfo.symbol}
                         </td>
                         <td className="py-2 px-4 text-center border">
                           {actions.map((action) => (
                             <button
                               key={action}
-                              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2"
+                              className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2 ${
+                                loading ? "opacity-50 cursor-not-allowed" : ""
+                              }`}
                               onClick={() => handleAction(escrow, action)}
+                              disabled={loading}
                             >
-                              {action}
+                              {loading ? "Processing..." : action}
                             </button>
                           ))}
                         </td>
@@ -287,6 +368,15 @@ const EscrowApp = () => {
           <p>Please connect your wallet to view your escrows.</p>
         )}
       </div>
+
+      {/* Loading Indicator */}
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-4 rounded">
+            <p className="text-lg">Processing transaction...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
