@@ -82,18 +82,18 @@ export default function Navbar() {
             <svg
               width="25"
               height="25"
-              viewBox="0 0 16 16"
+              viewBox="0 0 18 18"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 fill-rule="evenodd"
                 clip-rule="evenodd"
-                d="M15.4 0.6H0.6V15.4H15.4V0.6ZM0.6 0H0V0.6V15.4V16H0.6H15.4H16V15.4V0.6V0H15.4H0.6ZM12.7 3.3H3V2.7H13H13.3V3V13H12.7V3.3ZM3 7.3H8.7V13H9.3V7V6.7H9H3V7.3Z"
+                d="M0.6 0.6H17.4V17.4H0.6V0.6ZM0 0H0.6H17.4H18V0.6V17.4V18H17.4H0.6H0V17.4V0.6V0ZM4.96946 11.759L8.99996 7.7285L13.0305 11.759L13.4547 11.3347L9.2121 7.0921L8.99996 6.87997L8.78783 7.0921L4.54519 11.3347L4.96946 11.759Z"
                 fill="#8A8A8A"
               />
             </svg>
-            My Escrows
+            Escrows
           </Link>
           <Link
             href="/create-listing"
@@ -198,7 +198,7 @@ export default function Navbar() {
           </SheetTrigger>
           <SheetContent side="left" className="md:hidden">
             <Link href="/escrow" className="block py-2">
-              My Escrows
+              Escrows
             </Link>
             <Link href="/create-listing" className="block py-2">
               Create Listing
