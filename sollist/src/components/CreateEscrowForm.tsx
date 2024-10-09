@@ -6,6 +6,7 @@ import { BN } from "@coral-xyz/anchor";
 import { createEscrow } from "@/lib/client";
 import { useEscrowProgram } from "@/lib/useEscrowProgram";
 import { PublicKey } from "@solana/web3.js";
+import { toast } from "react-toastify";
 
 const TOKEN_OPTIONS = [
   {
@@ -33,19 +34,17 @@ const CreateEscrowForm = () => {
     duration: "",
   });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ type: "", content: "" });
 
-  const handleChange: ChangeEventHandler<any> = (e) => {
+  const handleChange: ChangeEventHandler<
+    HTMLInputElement | HTMLSelectElement
+  > = (e) => {
     setFormValues({ ...formValues, [e.target.name]: e.target.value });
   };
 
   const handleSubmit: FormEventHandler = async (e) => {
     e.preventDefault();
     if (!program) {
-      setMessage({
-        type: "error",
-        content: "Program not initialized. Please connect your wallet.",
-      });
+      toast.error("Program not initialized. Please connect your wallet.");
       return;
     }
 
@@ -56,15 +55,11 @@ const CreateEscrowForm = () => {
       !formValues.amount ||
       !formValues.duration
     ) {
-      setMessage({
-        type: "error",
-        content: "Please fill in all required fields.",
-      });
+      toast.error("Please fill in all required fields.");
       return;
     }
 
     setLoading(true);
-    setMessage({ type: "", content: "" });
 
     try {
       const selectedToken = TOKEN_OPTIONS.find(
@@ -86,7 +81,8 @@ const CreateEscrowForm = () => {
         amount: amountInSmallestUnit,
         duration: new BN(formValues.duration),
       });
-      setMessage({ type: "success", content: "Escrow created successfully." });
+
+      toast.success("Escrow created successfully.");
 
       // Reset form after success
       setFormValues({
@@ -99,69 +95,78 @@ const CreateEscrowForm = () => {
       });
     } catch (error) {
       console.error("Error creating escrow:", error);
-      setMessage({
-        type: "error",
-        content: `Error: ${(error as Error).message}`,
-      });
+      if ((error as Error).message.includes("User rejected the request")) {
+        toast.warn("Transaction canceled.");
+      } else {
+        toast.error(`Error: ${(error as Error).message}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-      <h2 className="text-xl font-bold mb-4">Create Escrow</h2>
-
-      {/* Display Messages */}
-      {message.content && (
-        <div
-          className={`mb-4 p-4 rounded ${
-            message.type === "success"
-              ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
-          }`}
-        >
-          {message.content}
-        </div>
-      )}
+    <div className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
+      <h2 className="text-2xl font-bold mb-6 text-center">Create Escrow</h2>
 
       {/* Create Escrow Form */}
       <form onSubmit={handleSubmit}>
-        <div className="space-y-4">
-          <input
-            type="text"
-            name="id"
-            placeholder="Escrow ID"
-            value={formValues.id}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded w-full"
-          />
-          <input
-            type="text"
-            name="buyer"
-            placeholder="Buyer Address"
-            value={formValues.buyer}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded w-full"
-          />
-          <input
-            type="text"
-            name="arbiter"
-            placeholder="Arbiter Address"
-            value={formValues.arbiter}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded w-full"
-          />
+        <div className="space-y-6">
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">
+              Escrow ID
+            </label>
+            <input
+              type="text"
+              name="id"
+              placeholder="Enter a unique escrow ID"
+              value={formValues.id}
+              onChange={handleChange}
+              className="border border-gray-300 p-3 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">
+              Buyer Address
+            </label>
+            <input
+              type="text"
+              name="buyer"
+              placeholder="Enter buyer's public key"
+              value={formValues.buyer}
+              onChange={handleChange}
+              className="border border-gray-300 p-3 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">
+              Arbiter Address (Optional)
+            </label>
+            <input
+              type="text"
+              name="arbiter"
+              placeholder="Enter arbiter's public key"
+              value={formValues.arbiter}
+              onChange={handleChange}
+              className="border border-gray-300 p-3 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
           {/* Token Selector */}
           <div className="flex space-x-4">
             <div className="w-1/2">
-              <label className="block text-gray-700">Token</label>
+              <label className="block text-gray-700 font-medium mb-2">
+                Token
+              </label>
               <select
                 name="token"
                 value={formValues.token}
                 onChange={handleChange}
-                className="border border-gray-300 p-2 rounded w-full"
+                className="border border-gray-300 p-3 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {TOKEN_OPTIONS.map((token) => (
                   <option key={token.label} value={token.label}>
@@ -171,34 +176,41 @@ const CreateEscrowForm = () => {
               </select>
             </div>
             <div className="w-1/2">
-              <label className="block text-gray-700">
+              <label className="block text-gray-700 font-medium mb-2">
                 Amount ({formValues.token})
               </label>
               <input
                 type="number"
                 name="amount"
-                placeholder="Amount"
+                placeholder="Enter amount"
                 value={formValues.amount}
                 onChange={handleChange}
-                className="border border-gray-300 p-2 rounded w-full"
+                className="border border-gray-300 p-3 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 step="any"
+                required
               />
             </div>
           </div>
 
           {/* Duration */}
-          <input
-            type="number"
-            name="duration"
-            placeholder="Duration (seconds)"
-            value={formValues.duration}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded w-full"
-          />
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">
+              Auto Complete Duration (seconds)
+            </label>
+            <input
+              type="number"
+              name="duration"
+              placeholder="Enter duration in seconds"
+              value={formValues.duration}
+              onChange={handleChange}
+              className="border border-gray-300 p-3 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
         </div>
         <button
           type="submit"
-          className={`mt-6 w-full px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${
+          className={`mt-6 w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             loading ? "opacity-50 cursor-not-allowed" : ""
           }`}
           disabled={!publicKey || loading}

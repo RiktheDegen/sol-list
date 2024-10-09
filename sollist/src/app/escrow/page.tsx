@@ -25,6 +25,8 @@ import {
   createSyncNativeInstruction,
   createCloseAccountInstruction,
 } from "@solana/spl-token";
+import { ClipLoader } from "react-spinners";
+import { toast } from "react-toastify";
 
 type EscrowData = ProgramAccount<{
   version: number;
@@ -53,7 +55,6 @@ const EscrowApp = () => {
   const { publicKey, signTransaction } = useWallet();
   const { program } = useEscrowProgram();
   const [escrows, setEscrows] = useState<EscrowData[]>([]);
-  const [message, setMessage] = useState({ type: "", content: "" });
   const [loading, setLoading] = useState(false);
 
   // Fetch escrows where the user is the buyer or seller
@@ -91,15 +92,35 @@ const EscrowApp = () => {
     action: string
   ) => {
     if (!program || !publicKey) {
-      setMessage({
-        type: "error",
-        content: "Program not initialized. Please connect your wallet.",
-      });
+      toast.error("Program not initialized. Please connect your wallet.");
+      return;
+    }
+
+    const isSeller = escrow.seller.equals(publicKey);
+    const isBuyer = escrow.buyer.equals(publicKey);
+
+    // Authorization checks
+    if (action === "fund" && !isBuyer) {
+      toast.error("Only the buyer can fund the escrow.");
+      return;
+    }
+
+    if (action === "markShipped" && !isSeller) {
+      toast.error("Only the seller can mark the escrow as shipped.");
+      return;
+    }
+
+    if (action === "confirm" && !isBuyer) {
+      toast.error("Only the buyer can confirm receipt.");
+      return;
+    }
+
+    if (action === "withdraw" && !isSeller) {
+      toast.error("Only the seller can withdraw the funds.");
       return;
     }
 
     setLoading(true);
-    setMessage({ type: "", content: "" });
 
     try {
       const connection = program.provider.connection;
@@ -169,17 +190,13 @@ const EscrowApp = () => {
             escrow.seller.toBase58(),
             new BN(escrow.id)
           );
-          setMessage({
-            type: "success",
-            content: "Escrow funded successfully.",
-          });
+          toast.success("Escrow funded successfully.");
+          toast.info("Waiting for the seller to mark the item as shipped.");
           break;
         case "markShipped":
           await markEscrowAsShipped(program, new BN(escrow.id));
-          setMessage({
-            type: "success",
-            content: "Escrow marked as shipped successfully.",
-          });
+          toast.success("Escrow marked as shipped successfully.");
+          toast.info("Waiting for the buyer to confirm receipt.");
           break;
         case "confirm":
           await buyerConfirm(
@@ -187,24 +204,27 @@ const EscrowApp = () => {
             escrow.seller.toBase58(),
             new BN(escrow.id)
           );
-          setMessage({
-            type: "success",
-            content: "Escrow confirmed successfully.",
-          });
+          toast.success("You have confirmed receipt.");
+          toast.info("Seller can now withdraw the funds.");
           break;
         case "withdraw":
           await withdrawEscrow(program, new BN(escrow.id));
-          setMessage({ type: "success", content: "Withdrawal successful." });
+          toast.success("Withdrawal successful.");
           break;
         default:
           break;
       }
     } catch (error) {
       console.error(`Error performing ${action}:`, error);
-      setMessage({
-        type: "error",
-        content: `Error: ${(error as Error).message}`,
-      });
+      const errorMessage = (error as Error).message;
+
+      if (errorMessage.includes("User rejected the request")) {
+        toast.warn("Transaction canceled.");
+      } else if (errorMessage.includes("insufficient funds")) {
+        toast.error("Insufficient funds to complete the transaction.");
+      } else {
+        toast.error(`Error: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
       // Refresh escrows after action
@@ -212,10 +232,36 @@ const EscrowApp = () => {
     }
   };
 
-  // Function to display the escrow state as a string
+  // Function to display the escrow state as a string and get color classes
   const getEscrowState = (state: any) => {
-    const stateKeys = Object.keys(state);
-    return stateKeys.find((key) => state[key]);
+    const stateKey = Object.keys(state).find((key) => state[key]);
+    const stateColors: { [key: string]: string } = {
+      created: "bg-gray-200 text-gray-800",
+      funded: "bg-blue-200 text-blue-800",
+      markedAsShipped: "bg-orange-200 text-orange-800",
+      buyerConfirmed: "bg-green-200 text-green-800",
+      fundsReleased: "bg-purple-200 text-purple-800",
+      cancelled: "bg-red-200 text-red-800",
+    };
+    return {
+      name: stateKey,
+      colorClass: stateColors[stateKey] || "bg-gray-200 text-gray-800",
+    };
+  };
+
+  // Action button colors
+  const actionButtonColors: { [key: string]: string } = {
+    fund: "bg-blue-600",
+    markShipped: "bg-orange-600",
+    confirm: "bg-green-600",
+    withdraw: "bg-purple-600",
+  };
+
+  const actionButtonHoverColors: { [key: string]: string } = {
+    fund: "bg-blue-700",
+    markShipped: "bg-orange-700",
+    confirm: "bg-green-700",
+    withdraw: "bg-purple-700",
   };
 
   return (
@@ -228,24 +274,13 @@ const EscrowApp = () => {
         {/* Wallet Connection Status */}
         <div className="flex justify-center mb-6">
           {publicKey ? (
-            <p className="text-green-600">Connected: {publicKey.toBase58()}</p>
+            <p className="text-green-600 font-medium">
+              Connected: {publicKey.toBase58()}
+            </p>
           ) : (
-            <p className="text-red-600">Wallet not connected</p>
+            <p className="text-red-600 font-medium">Wallet not connected</p>
           )}
         </div>
-
-        {/* Display Messages */}
-        {message.content && (
-          <div
-            className={`mb-4 p-4 rounded ${
-              message.type === "success"
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
-            {message.content}
-          </div>
-        )}
 
         {/* Create Escrow Form */}
         {publicKey && (
@@ -258,108 +293,119 @@ const EscrowApp = () => {
         <h2 className="text-2xl font-semibold mb-4">Your Escrows</h2>
         {publicKey ? (
           escrows.length > 0 ? (
-            <div className="overflow-auto">
-              <table className="min-w-full bg-white border">
-                <thead>
-                  <tr>
-                    <th className="py-2 px-4 border">Escrow ID</th>
-                    <th className="py-2 px-4 border">Role</th>
-                    <th className="py-2 px-4 border">State</th>
-                    <th className="py-2 px-4 border">Buyer</th>
-                    <th className="py-2 px-4 border">Seller</th>
-                    <th className="py-2 px-4 border">Amount</th>
-                    <th className="py-2 px-4 border">Token</th>
-                    <th className="py-2 px-4 border">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {escrows.map((escrowData) => {
-                    const escrow = escrowData.account;
-                    const isSeller = publicKey
-                      ? escrow.seller.equals(publicKey)
-                      : false;
-                    const isBuyer = publicKey
-                      ? escrow.buyer.equals(publicKey)
-                      : false;
-                    const role = isSeller ? "Seller" : "Buyer";
-                    const state = getEscrowState(escrow.state);
+            <div className="space-y-4">
+              {escrows.map((escrowData) => {
+                const escrow = escrowData.account;
+                const isSeller = publicKey
+                  ? escrow.seller.equals(publicKey)
+                  : false;
+                const isBuyer = publicKey
+                  ? escrow.buyer.equals(publicKey)
+                  : false;
+                const role = isSeller ? "Seller" : "Buyer";
 
-                    // Get token info
-                    const tokenInfo = TOKEN_INFO[
-                      escrow.tokenMint.toBase58()
-                    ] || {
-                      symbol: "TOKEN",
-                      decimals: 6,
-                    };
+                // Get token info
+                const tokenInfo = TOKEN_INFO[escrow.tokenMint.toBase58()] || {
+                  symbol: "TOKEN",
+                  decimals: 6,
+                };
 
-                    // Format amount
-                    const amountFormatted = (
-                      escrow.amount.toNumber() /
-                      Math.pow(10, tokenInfo.decimals)
-                    ).toFixed(tokenInfo.decimals);
+                // Format amount
+                const amountFormatted = (
+                  escrow.amount.toNumber() / Math.pow(10, tokenInfo.decimals)
+                ).toFixed(tokenInfo.decimals);
 
-                    // Shorten buyer and seller addresses for display
-                    const buyerAddressShort = `${escrow.buyer
-                      .toBase58()
-                      .slice(0, 4)}...${escrow.buyer.toBase58().slice(-4)}`;
-                    const sellerAddressShort = `${escrow.seller
-                      .toBase58()
-                      .slice(0, 4)}...${escrow.seller.toBase58().slice(-4)}`;
+                // Shorten buyer and seller addresses for display
+                const buyerAddressShort = `${escrow.buyer
+                  .toBase58()
+                  .slice(0, 4)}...${escrow.buyer.toBase58().slice(-4)}`;
+                const sellerAddressShort = `${escrow.seller
+                  .toBase58()
+                  .slice(0, 4)}...${escrow.seller.toBase58().slice(-4)}`;
 
-                    // Determine available actions based on role and state
-                    const actions = [];
-                    if (isBuyer && state === "created") {
-                      actions.push("fund");
-                    }
-                    if (isSeller && state === "funded") {
-                      actions.push("markShipped");
-                    }
-                    if (isBuyer && state === "markedAsShipped") {
-                      actions.push("confirm");
-                    }
-                    if (isSeller && state === "buyerConfirmed") {
-                      actions.push("withdraw");
-                    }
-                    return (
-                      <tr key={escrowData.publicKey.toBase58()}>
-                        <td className="py-2 px-4 text-center border">
-                          {escrow.id.toString()}
-                        </td>
-                        <td className="py-2 px-4 text-center border">{role}</td>
-                        <td className="py-2 px-4 text-center border">
-                          {state}
-                        </td>
-                        <td className="py-2 px-4 text-center border">
-                          {buyerAddressShort}
-                        </td>
-                        <td className="py-2 px-4 text-center border">
-                          {sellerAddressShort}
-                        </td>
-                        <td className="py-2 px-4 text-center border">
-                          {amountFormatted} {tokenInfo.symbol}
-                        </td>
-                        <td className="py-2 px-4 text-center border">
-                          {tokenInfo.symbol}
-                        </td>
-                        <td className="py-2 px-4 text-center border">
-                          {actions.map((action) => (
-                            <button
-                              key={action}
-                              className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2 ${
-                                loading ? "opacity-50 cursor-not-allowed" : ""
-                              }`}
-                              onClick={() => handleAction(escrow, action)}
-                              disabled={loading}
-                            >
-                              {loading ? "Processing..." : action}
-                            </button>
-                          ))}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                // Determine available actions based on role and state
+                const actions = [];
+                const state = getEscrowState(escrow.state);
+                const isDisabled = loading;
+
+                if (isBuyer && state.name === "created") {
+                  actions.push("fund");
+                }
+                if (isSeller && state.name === "funded") {
+                  actions.push("markShipped");
+                }
+                if (isBuyer && state.name === "markedAsShipped") {
+                  actions.push("confirm");
+                }
+                if (isSeller && state.name === "buyerConfirmed") {
+                  actions.push("withdraw");
+                }
+
+                // Role badge
+                const roleBadge = (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      role === "Seller"
+                        ? "bg-purple-200 text-purple-800"
+                        : "bg-green-200 text-green-800"
+                    }`}
+                  >
+                    {role}
+                  </span>
+                );
+
+                return (
+                  <div
+                    key={escrowData.publicKey.toBase58()}
+                    className="border rounded-lg p-6 shadow-sm"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-semibold">
+                          Escrow #{escrow.id.toString()}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Amount: {amountFormatted} {tokenInfo.symbol}
+                        </p>
+                      </div>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold ${state.colorClass}`}
+                      >
+                        {state.name}
+                      </span>
+                    </div>
+                    <div className="mt-4 text-sm text-gray-700 space-y-1">
+                      <p>
+                        <strong>Role:</strong> {roleBadge}
+                      </p>
+                      <p>
+                        <strong>Buyer:</strong> {buyerAddressShort}
+                      </p>
+                      <p>
+                        <strong>Seller:</strong> {sellerAddressShort}
+                      </p>
+                    </div>
+                    <div className="mt-6">
+                      {actions.map((action) => (
+                        <button
+                          key={action}
+                          className={`inline-flex items-center px-4 py-2 mr-2 border border-transparent text-sm font-medium rounded text-white ${
+                            actionButtonColors[action]
+                          } hover:${
+                            actionButtonHoverColors[action]
+                          } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                            isDisabled ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
+                          onClick={() => handleAction(escrow, action)}
+                          disabled={isDisabled}
+                        >
+                          {action}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p>No escrows found.</p>
@@ -371,9 +417,12 @@ const EscrowApp = () => {
 
       {/* Loading Indicator */}
       {loading && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-4 rounded">
-            <p className="text-lg">Processing transaction...</p>
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg flex flex-col items-center">
+            <ClipLoader size={35} color="#2563eb" />
+            <p className="mt-4 text-lg font-medium text-gray-700">
+              Processing transaction...
+            </p>
           </div>
         </div>
       )}
