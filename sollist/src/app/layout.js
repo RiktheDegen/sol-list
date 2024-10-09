@@ -21,7 +21,7 @@ export default function RootLayout({ children }) {
               <div className="container mx-auto px-4 py-4">
                 <nav className="flex flex-wrap justify-center items-center text-sm">
                   <span className="text-muted-foreground mr-4">
-                    © 2024 degenbaazar
+                    © 2024 kora
                   </span>
                   <Link
                     href="/help"

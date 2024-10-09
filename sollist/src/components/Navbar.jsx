@@ -70,10 +70,31 @@ export default function Navbar() {
           className="flex items-center gap-2 font-bold text-xl text-[#2b2b2b]"
           prefetch={false}
         >
-          <span>DegenBaazar</span>
+          <span>Kora</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
+          <Link
+            href="/create-escrow"
+            className="flex items-center gap-2 text-sm  text-[#2b2b2b] hover:text-primary"
+            prefetch={false}
+          >
+            <svg
+              width="25"
+              height="25"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fill-rule="evenodd"
+                clip-rule="evenodd"
+                d="M15.4 0.6H0.6V15.4H15.4V0.6ZM0.6 0H0V0.6V15.4V16H0.6H15.4H16V15.4V0.6V0H15.4H0.6ZM12.7 3.3H3V2.7H13H13.3V3V13H12.7V3.3ZM3 7.3H8.7V13H9.3V7V6.7H9H3V7.3Z"
+                fill="#8A8A8A"
+              />
+            </svg>
+            Create Escrow
+          </Link>
           <Link
             href="/escrow"
             className="flex items-center gap-2 text-sm  text-[#2b2b2b] hover:text-primary"
@@ -197,6 +218,9 @@ export default function Navbar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="md:hidden">
+            <Link href="/create-escrow" className="block py-2">
+              Create Escrow
+            </Link>
             <Link href="/escrow" className="block py-2">
               Escrows
             </Link>
