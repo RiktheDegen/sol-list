@@ -144,7 +144,7 @@ const CreateEscrowForm = () => {
 
           <div>
             <label className="block text-gray-700 font-medium mb-2">
-              Arbiter Address (Optional)
+              Arbiter Address
             </label>
             <input
               type="text"
@@ -195,7 +195,7 @@ const CreateEscrowForm = () => {
           {/* Duration */}
           <div>
             <label className="block text-gray-700 font-medium mb-2">
-              Auto Complete Duration (seconds)
+              Auto Complete After Shipping (seconds)
             </label>
             <input
               type="number"
