@@ -175,6 +175,10 @@ const EscrowApp = () => {
         transaction.feePayer = publicKey;
 
         // Sign and send the transaction
+        if (!signTransaction) {
+          throw new Error("Wallet not connected.");
+        }
+
         const signedTransaction = await signTransaction(transaction);
         const txid = await connection.sendRawTransaction(
           signedTransaction.serialize()
@@ -234,7 +238,7 @@ const EscrowApp = () => {
 
   // Function to display the escrow state as a string and get color classes
   const getEscrowState = (state: any) => {
-    const stateKey = Object.keys(state).find((key) => state[key]);
+    const stateKey = Object.keys(state).find((key) => state[key])!;
     const stateColors: { [key: string]: string } = {
       created: "bg-gray-200 text-gray-800",
       funded: "bg-blue-200 text-blue-800",
