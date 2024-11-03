@@ -70,7 +70,7 @@ export default function Navbar() {
           className="flex items-center gap-2 font-bold text-xl text-[#2b2b2b]"
           prefetch={false}
         >
-          <span>Kora</span>
+          <span>OpenList</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
