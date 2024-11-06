@@ -21,7 +21,7 @@ export default function InviteCodeScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden md:min-h-screen">
+    <div className="min-h-[75vh] flex items-center justify-center px-4 relative overflow-hidden md:min-h-screen">
       {/* Background Semicircles */}
       <div className="absolute bottom-0 w-full">
         <div className="relative h-[30vh] md:h-[30vh]">
