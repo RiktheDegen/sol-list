@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function HomePageContent({ user, listings }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
       <main className="flex-1 px-4 md:px-6 py-8">
         <div>
           <div>
@@ -148,6 +148,11 @@ export default function HomePageContent({ user, listings }) {
           </div>
         </div>
       </main>
+      <div className="absolute bottom-0 left-0 right-0 overflow-hidden">
+        <div className="w-[200%] h-[200vw] bg-[#E6F0FF] rounded-[100%] absolute bottom-[-100vw] left-[-50%]"></div>
+        <div className="w-[150%] h-[150vw] bg-[#B3D4FF] rounded-[100%] absolute bottom-[-75vw] left-[-25%]"></div>
+        <div className="w-[100%] h-[100vw] bg-[#80B8FF] rounded-[100%] absolute bottom-[-50vw] left-0"></div>
+      </div>
     </div>
   );
 }

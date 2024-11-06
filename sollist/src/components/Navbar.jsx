@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { MenuIcon } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import Image from "next/image";
 
 export default function Navbar() {
   const { publicKey, connected } = useWallet();
@@ -70,7 +71,7 @@ export default function Navbar() {
           className="flex items-center gap-2 font-bold text-xl text-[#2b2b2b]"
           prefetch={false}
         >
-          <span>OpenList</span>
+          <Image src="/logo.svg" alt="logo" width={200} height={200} />
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
